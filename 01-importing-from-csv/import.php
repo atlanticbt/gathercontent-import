@@ -23,7 +23,7 @@ $client = new Client([
 $createProjectResponse = $client->post('/projects', [
     'form_params' => [
         'account_id' => 12975,
-        'name' => 'Importing Example',
+        'name' => 'Employee Bios (Importing Example)',
     ]
 ]);
 
