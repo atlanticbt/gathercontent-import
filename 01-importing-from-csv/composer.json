@@ -1,7 +1,0 @@
-{
-    "require": {
-        "league/csv": "^7.2",
-        "guzzlehttp/guzzle": "^6.1",
-        "ramsey/uuid": "^3.0"
-    }
-}

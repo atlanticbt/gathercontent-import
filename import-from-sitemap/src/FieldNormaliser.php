@@ -25,7 +25,7 @@ class FieldNormaliser
          */
         $field = new stdClass();
         $field->type = "text";
-        $field->name = "el1";
+        $field->name = "el1474287414831";
         $field->required = false;
         $field->label = "imported";
         $field->value = $hashMap['imported'];
@@ -47,7 +47,7 @@ class FieldNormaliser
             'project_id' => $projectId,
             'name' => $hashMap['name'],
 //            'parent_id' (optional)	Parent Item ID
-//            'template_id' (optional)	Template ID to apply
+            'template_id' => 421362,
             'config' => base64_encode(json_encode($config))
         ];
     }

@@ -2,9 +2,11 @@
 
 use GuzzleHttp\Client;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Yaml\Yaml;
 
 class ImportCommand extends Command
 {
@@ -12,9 +14,13 @@ class ImportCommand extends Command
      * @var Client
      */
     private $httpClient;
+    private $config;
 
     public function configure()
     {
+        $this
+            ->addOption('configfile', null, InputOption::VALUE_REQUIRED, 'The configuration file.');
+
         $this->setName('scrape')->setDescription('Scrape content and import from an existing website');
     }
 
@@ -27,30 +33,32 @@ class ImportCommand extends Command
             ]
         ]);
 
+        if ($importFile = $input->getOption('configfile')) {
+            $this->config = Yaml::parse(file_get_contents($importFile));
+        }
+
         $io = new SymfonyStyle($input, $output);
 
-        $username = $io->ask('What is your username?');
-        $apiKey   = $io->ask('What is your API key?');
-
-        $io->text('Validating username and API key...');
+        $username = $this->config['username'];
+        $apiKey   = $this->config['api_key'];
 
         if (!$this->authenticate($username, $apiKey)) {
-            $io->error('Hm, your username and API key are not working right now.');
+
             exit;
         }
 
-        $io->success('Looks good.');
+        $io->success('Connected to Gather Content.');
 
         // which account would you like to use?
-        $accounts = $this->lookupAccounts($username, $apiKey);
-
-        if (count($accounts) == 1) {
-            $accountId = reset(array_keys($accounts));
-        } else {
-            $accountName = $io->choice('Which account would you like to use?', array_values($accounts));
-            $accountId   = array_search($accountName, $accounts);
+        if ($accountId = $this->config['account_id']) {
+            $accounts = $this->lookupAccounts($username, $apiKey);
+            if (count($accounts) == 1) {
+                $accountId = reset(array_keys($accounts));
+            }
+            else {
+                $io->error('Please add your account id to the config file.');
+            }
         }
-
         // what project would you like to import to
         $projects = $this->lookupProjects($username, $apiKey, $accountId);
 
@@ -176,8 +184,10 @@ class ImportCommand extends Command
         $options = [
             'auth'        => [$username, $apiKey],
             'form_params' => $data
-        ];
 
-        return $this->httpClient->post('items', $options)->getStatusCode() === 202;
+        ];
+        $response = $this->httpClient->post('items', $options);
+
+        return $response->getStatusCode() === 202;
     }
 }
