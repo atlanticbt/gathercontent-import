@@ -41,7 +41,7 @@ $ composer install
 Execute the application with
 
 ```bash
-$ bin/scrape
+$ bin/scrape --configfile=configfilename
 ```
 
 

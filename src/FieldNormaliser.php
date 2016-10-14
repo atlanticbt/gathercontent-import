@@ -40,7 +40,7 @@ class FieldNormaliser
             $field = clone $default;
             $field->name = $id;
             $field->value = $value;
-            ///$field->label =  ;
+            $field->label = 'label-' . $id ;
             $elements[] = $field;
         }
         //var_dump($elements); exit;
