@@ -19,7 +19,10 @@ class ImportCommand extends Command
     public function configure()
     {
         $this
-            ->addOption('configfile', null, InputOption::VALUE_REQUIRED, 'The configuration file.');
+            ->addOption('configfile', null, InputOption::VALUE_OPTIONAL, 'The configuration file.')
+            ->addOption('username', null, InputOption::VALUE_OPTIONAL, 'The username.')
+            ->addOption('api_key', null, InputOption::VALUE_OPTIONAL, 'The configuration file.')
+            ->addOption('template_id', null, InputOption::VALUE_OPTIONAL, 'The template id.');;
 
         $this->setName('scrape')->setDescription('Scrape content and import from an existing website');
     }
@@ -37,11 +40,12 @@ class ImportCommand extends Command
             $this->config = Yaml::parse(file_get_contents($importFile));
         }
 
+
         $io = new SymfonyStyle($input, $output);
 
-        $username = $this->config['username'];
-        $apiKey   = $this->config['api_key'];
-
+        $username = $input->getOption('username') ? $input->getOption('username') : $this->config['username'];
+        $apiKey   = $input->getOption('api_key') ? $input->getOption('api_key') : $this->config['api_key'];
+        $templateId = $input->getOption('template_id') ? $input->getOption('template_id') : $this->config['template_id'];
         if (!$this->authenticate($username, $apiKey)) {
 
             exit;
@@ -49,8 +53,12 @@ class ImportCommand extends Command
 
         $io->success('Connected to Gather Content.');
 
+        if ($input->getOption('template_id')) {
+            $this->lookupTemplate($username, $apiKey, $input->getOption('template_id'));
+        }
+
         // which account would you like to use?
-        if ($accountId = $this->config['account_id']) {
+        if (!$accountId = $this->config['account_id']) {
             $accounts = $this->lookupAccounts($username, $apiKey);
             if (count($accounts) == 1) {
                 $accountId = reset(array_keys($accounts));
@@ -59,19 +67,24 @@ class ImportCommand extends Command
                 $io->error('Please add your account id to the config file.');
             }
         }
+
         // what project would you like to import to
         $projects = $this->lookupProjects($username, $apiKey, $accountId);
 
-        $projectName = $io->choice(
-            'What project would you like to import to? (default is a new project)',
-            array_merge(['Create a new project'], $projects),
-            'Create a new project'
-        );
-        $projectId = array_search($projectName, $projects);
+        $projectId = $this->config['project_id'];
+        $projectName = $projects[$projectId];
+        if (!isset($projectName) || $projectName=='') {
+            $projectName = $io->choice(
+              'What project would you like to import to? (default is a new project)',
+              array_merge(['Create a new project'], $projects),
+              'Create a new project'
+            );
+            $projectId = array_search($projectName, $projects);
+        }
 
         if ($projectId === false) {
             // create a new project
-            $projectName = $io->ask('What would you like to call the project?');
+            /*$projectName = $io->ask('What would you like to call the project?');
             // select a type
             $projectType = $io->choice(
                 'Select a type for the project',
@@ -91,13 +104,14 @@ class ImportCommand extends Command
             $newProjects = $this->lookupProjects($username, $apiKey, $accountId);
             $newProject  = array_diff($newProjects, $projects);
             $projectId   = key($newProject);
-            $projectName = current($newProject);
+            $projectName = current($newProject);*/
         }
 
         $io->text('Importing to project: ' . $projectName);
 
-        $sitemap = $io->ask('Please provide a link to your sitemap.xml (remember the leading http://)');
-
+        if (!$sitemap = $this->config['sitemap_url']) {
+            $sitemap = $io->ask('Please provide a link to your sitemap.xml (remember the leading http://)');
+        }
         $io->text('Searching for items in ' . $sitemap);
 
         $urls = (new SitemapScraper())->listUrls($sitemap);
@@ -109,23 +123,38 @@ class ImportCommand extends Command
 
         $io->text('We found ' . $urlCount . ' pages to import.');
 
-        $cssSelector = $io->ask('What CSS selector would you like to import from? (e.g. body, .content, #main)', 'article');
-
-        if (!$io->confirm('Ok to import? (this may take a while)')) {
-            exit;
+        if (!$mappings = $this->config['mappings']) {
+            $mappings['imported']['field_type'] = 'css_selector';
+            $mappings['imported']['css_selector'] = $io->ask('What CSS selector would you like to import from? (e.g. body, .content, #main)  If you would like more options use the --config option.', 'article');
         }
 
         $io->progressStart($urlCount);
 
         $contentToFieldMapper = new ContentToFieldMapper();
         $normaliser           = new FieldNormaliser();
-
+        $mapped = array(
+            'name' => 'title'
+        );
+        //$mapped = array();
+        $mappedValues = array();
+        foreach ($mappings as $key => $value) {
+            if ($value['field_type'] == 'value') {
+                $mappedValues[$value['mapped_field']] = $value['value'];
+            } elseif ($value['field_type'] == 'css_selector') {
+                $mapped[$value['mapped_field']] = $value['css_selector'];
+            }
+        }
         foreach ($urls as $url) {
+
             $hashMap     = $contentToFieldMapper->mapContentToFields(
                 file_get_contents($url),
-                ['name' => 'title', 'imported' => $cssSelector]
+                $mapped
             );
-            $fields      = $normaliser->normalise($hashMap, $projectId);
+            $hashMap = array_merge($hashMap, $mappedValues);
+            //var_dump($hashMap);
+            $fields      = $normaliser->normalise($hashMap, $projectId, $templateId);
+            //var_dump($fields); exit;
+            //print_r($fields); exit;
             $this->createItem($fields, $username, $apiKey);
             $io->progressAdvance();
         }
@@ -162,6 +191,19 @@ class ImportCommand extends Command
             $projects[$project->id] = $project->name;
 
             return $projects;
+        }, []);
+    }
+
+    private function lookupTemplate($username, $apiKey, $templateId)
+    {
+        $options      = ['auth' => [$username, $apiKey]];
+        $jsonResponse = $this->httpClient->get('templates/' . $templateId, $options)->getBody();
+        $response     = json_decode($jsonResponse);
+
+        return array_reduce($response->data->config[0]->elements, function ($elements, $element) {
+
+            $elements[$element->name] = $element->label;
+            return $elements;
         }, []);
     }
 
