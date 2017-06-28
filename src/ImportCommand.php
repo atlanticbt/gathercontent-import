@@ -53,9 +53,7 @@ class ImportCommand extends Command
 
         $io->success('Connected to Gather Content.');
 
-        if ($input->getOption('template_id')) {
-            $this->lookupTemplate($username, $apiKey, $input->getOption('template_id'));
-        }
+        $template = $this->lookupTemplate($username, $apiKey, $templateId);
 
         // which account would you like to use?
         if (!$accountId = $this->config['account_id']) {
@@ -152,7 +150,7 @@ class ImportCommand extends Command
             );
             $hashMap = array_merge($hashMap, $mappedValues);
             //var_dump($hashMap);
-            $fields      = $normaliser->normalise($hashMap, $projectId, $templateId);
+            $fields = $normaliser->normalise($hashMap, $projectId, $templateId, $template);
             //var_dump($fields); exit;
             //print_r($fields); exit;
             $this->createItem($fields, $username, $apiKey);
@@ -200,11 +198,7 @@ class ImportCommand extends Command
         $jsonResponse = $this->httpClient->get('templates/' . $templateId, $options)->getBody();
         $response     = json_decode($jsonResponse);
 
-        return array_reduce($response->data->config[0]->elements, function ($elements, $element) {
-
-            $elements[$element->name] = $element->label;
-            return $elements;
-        }, []);
+        return $response;
     }
 
     private function createProject($username, $apiKey, $accountId, $projectName, $projectType)

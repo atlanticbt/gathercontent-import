@@ -2,7 +2,7 @@
 
 class FieldNormaliser
 {
-    public function normalise($hashMap = [], $projectId, $templateId)
+    public function normalise($hashMap = [], $projectId, $templateId, &$template)
     {
 
         /*
@@ -24,41 +24,24 @@ class FieldNormaliser
                     }]
                 }]
          */
-        $elements = array();
-        $default = new stdClass();
-        $default->type = "text";
-        $default->name = '';
-        $default->required = false;
-        $default->label = "";
-        $default->value = '';
-        $default->microcopy = "";
-        $default->limit_type = "words";
-        $default->limit = 0;
-        $default->plain_text = false;
-//var_dump($hashMap); exit;
-        foreach($hashMap as $id => $value) {
-            $field = clone $default;
-            $field->name = $id;
-            $field->value = $value;
-            $field->label = 'label-' . $id ;
-            $elements[] = $field;
+
+        foreach ($hashMap as $name => $value) {
+          if ($name !== 'name') {
+            foreach ($template->data->config as $key => $tab) {
+              foreach ($tab->elements as $k => $data) {
+                if ($data->name === $name) {
+                  $template->data->config[$key]->elements[$k]->value = $value;
+                }
+              }
+            }
+          }
         }
-        //var_dump($elements); exit;
-
-        $tab = new stdClass();
-        $tab->label = "Content";
-        $tab->name = "test";
-        $tab->hidden = false;
-        $tab->elements = $elements;
-
-        $config = [$tab];
-
         return [
           'project_id' => $projectId,
           'name' => $hashMap['name'],
-//            'parent_id' (optional)	Parent Item ID
+//        'parent_id' (optional)	Parent Item ID
           'template_id' => $templateId,
-          'config' => base64_encode(json_encode($config))
+          'config' => base64_encode(json_encode($template->data->config))
         ];
     }
 
