@@ -10,8 +10,10 @@ mappings:
         field_type: <css_selector or value>
         css_selector: <the selector value>  #used if css_selector
         value:  <direct value to be added>  #used if value
+        html: <true or false> #Whether text is HTML (true) or plain text (false)
     <field_name2>:
         mapped_field: <field_name_id_gathercontent>
         field_type: <css_selector or value>
         css_selector: <the selector value>
         value:  <direct value to be added>
+        html: <true or false> #Whether text is HTML (true) or plain text (false)

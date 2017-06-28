@@ -131,15 +131,16 @@ class ImportCommand extends Command
         $contentToFieldMapper = new ContentToFieldMapper();
         $normaliser           = new FieldNormaliser();
         $mapped = array(
-            'name' => 'title'
+            'name' => array('title', false),
         );
         //$mapped = array();
         $mappedValues = array();
         foreach ($mappings as $key => $value) {
+            $html_flag = (isset($value['html'])) ? $value['html'] : null;
             if ($value['field_type'] == 'value') {
-                $mappedValues[$value['mapped_field']] = $value['value'];
+                $mappedValues[$value['mapped_field']] = array($value['value'], $html_flag);
             } elseif ($value['field_type'] == 'css_selector') {
-                $mapped[$value['mapped_field']] = $value['css_selector'];
+              $mapped[$value['mapped_field']] = array($value['css_selector'], $html_flag);
             }
         }
         foreach ($urls as $url) {
