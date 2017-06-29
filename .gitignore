@@ -2,4 +2,5 @@ vendor
 credentials
 key
 .idea
-import.yml
+import*.yml
+!import-sample.yml

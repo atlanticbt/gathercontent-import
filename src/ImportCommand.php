@@ -53,9 +53,7 @@ class ImportCommand extends Command
 
         $io->success('Connected to Gather Content.');
 
-        if ($input->getOption('template_id')) {
-            $this->lookupTemplate($username, $apiKey, $input->getOption('template_id'));
-        }
+        $template = $this->lookupTemplate($username, $apiKey, $templateId);
 
         // which account would you like to use?
         if (!$accountId = $this->config['account_id']) {
@@ -133,15 +131,16 @@ class ImportCommand extends Command
         $contentToFieldMapper = new ContentToFieldMapper();
         $normaliser           = new FieldNormaliser();
         $mapped = array(
-            'name' => 'title'
+            'name' => array('title', false),
         );
         //$mapped = array();
         $mappedValues = array();
         foreach ($mappings as $key => $value) {
+            $html_flag = (isset($value['html'])) ? $value['html'] : null;
             if ($value['field_type'] == 'value') {
-                $mappedValues[$value['mapped_field']] = $value['value'];
+                $mappedValues[$value['mapped_field']] = array($value['value'], $html_flag);
             } elseif ($value['field_type'] == 'css_selector') {
-                $mapped[$value['mapped_field']] = $value['css_selector'];
+              $mapped[$value['mapped_field']] = array($value['css_selector'], $html_flag);
             }
         }
         foreach ($urls as $url) {
@@ -152,7 +151,7 @@ class ImportCommand extends Command
             );
             $hashMap = array_merge($hashMap, $mappedValues);
             //var_dump($hashMap);
-            $fields      = $normaliser->normalise($hashMap, $projectId, $templateId);
+            $fields = $normaliser->normalise($hashMap, $projectId, $templateId, $template);
             //var_dump($fields); exit;
             //print_r($fields); exit;
             $this->createItem($fields, $username, $apiKey);
@@ -200,11 +199,7 @@ class ImportCommand extends Command
         $jsonResponse = $this->httpClient->get('templates/' . $templateId, $options)->getBody();
         $response     = json_decode($jsonResponse);
 
-        return array_reduce($response->data->config[0]->elements, function ($elements, $element) {
-
-            $elements[$element->name] = $element->label;
-            return $elements;
-        }, []);
+        return $response;
     }
 
     private function createProject($username, $apiKey, $accountId, $projectName, $projectType)

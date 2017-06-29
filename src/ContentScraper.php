@@ -8,10 +8,13 @@ class ContentScraper
     {
         $crawler = new Crawler($content);
 
-        $filtered = $crawler->filter($xpathSelector);
+        $filtered = $crawler->filter($xpathSelector[0]);
 
         if ($filtered->count() > 0) {
-            return $filtered->text();
+          if ($xpathSelector[1] === true) {
+            return $filtered->html();
+          }
+          return $filtered->text();
         }
 
         return '';
