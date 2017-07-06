@@ -34,8 +34,6 @@ class FieldNormaliser
                 }
               }
             }
-          } elseif ($name === 'name') {
-            $dummy = '';
           }
         }
         return [
